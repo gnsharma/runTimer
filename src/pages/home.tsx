@@ -4,6 +4,7 @@
  * Documentation: https://v0.dev/docs#integrating-generated-code-into-your-nextjs-app
  */
 'use client'
+import { useEffect, useState } from 'react'
 
 import { Button } from 'components/ui/button'
 import {
@@ -15,14 +16,17 @@ import {
 } from 'components/ui/card'
 import { Input } from 'components/ui/input'
 import { Label } from 'components/ui/label'
-import { useEffect, useState } from 'react'
+
+import { getDesiredVoice } from 'lib/utils'
 
 const MINUTES_TO_SECONDS = 60
 const SECONDS_TO_MILLISECONDS = 1000
 
+const { synth, voice } = getDesiredVoice()
+
 export default function Component() {
 	const [elapsedTime, setElapsedTime] = useState(0)
-	const [intervalDuration, setIntervalDuration] = useState<number | undefined>()
+	const [intervalDuration, setIntervalDuration] = useState(0)
 	const [isRunning, setIsRunning] = useState(false)
 	const [timer, setTimer] = useState<NodeJS.Timeout | undefined>()
 
@@ -38,20 +42,28 @@ export default function Component() {
 		setIsRunning(true)
 		const timer = setInterval(
 			() => {
-				setElapsedTime(prevTime => prevTime + intervalDuration)
-				console.log(`Elapsed time: ${elapsedTime + intervalDuration} minutes`)
+				setElapsedTime(prevTime => {
+					const notificationText = `${Math.floor(prevTime + intervalDuration)} minutes हो गयी है.`
+					const utterThis = new SpeechSynthesisUtterance(notificationText)
+					if (voice) {
+						utterThis.voice = voice
+					}
+					synth.speak(utterThis)
+					return prevTime + intervalDuration
+				})
 			},
 			intervalDuration * MINUTES_TO_SECONDS * SECONDS_TO_MILLISECONDS
 		)
 		setTimer(timer)
 	}
+
 	const onClickStop = () => {
 		setIsRunning(false)
 		clearInterval(timer)
 	}
 	const onClickReset = () => {
 		setElapsedTime(0)
-		setIntervalDuration(undefined)
+		setIntervalDuration(0)
 		setIsRunning(false)
 		clearInterval(timer)
 	}
@@ -76,7 +88,7 @@ export default function Component() {
 							<Input
 								id='interval'
 								type='number'
-								value={intervalDuration}
+								value={intervalDuration || ''}
 								onChange={event =>
 									setIntervalDuration(Number(event.target.value))
 								}
